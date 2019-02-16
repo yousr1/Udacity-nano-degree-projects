@@ -1,0 +1,1138 @@
+ Prosper Loan Data Exploration by Yousr Mohamed Samy
+========================================================
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(knitr.duplicate.label = 'allow')
+```
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(gridExtra)
+
+library(GGally)
+library(scales)
+library(memisc)
+library(MASS)
+
+
+```
+
+```{r echo=FALSE,message=FALSE, warning=FALSE, Load_the_Data}
+
+# Load the Data
+
+debt_org<-read.csv('prosperLoanData.csv')
+
+```
+
+>  work with Prosper loans Dataset 
+
+This data set contains 113,937 loans with 81 variables on each loan, including loan amount, borrower rate (or interest rate), current loan status, borrower income, borrower employment status, borrower credit history, and the latest payment information.
+
+Prosper is a company in the peer-to-peer lending industry,where the lenders are people who want to invest on funding , with the borrower's history available for the investors ,along side creditscore and othe known evaluation metrics , Prosper
+use pre-set rates determined by  Prosper's loan pricing algorithm where it assigns a rating to the loan after it analyzes the borrower's credit report and financial information , this metric is called Prosper Grading score
+
+
+## Initial investigation of the dataset variables :
+description of some of the variables :
+
+1-**LoanStatus** : The current status of the loan: Cancelled, Chargedoff, Completed, Current, Defaulted, FinalPaymentInProgress, PastDue. The
+PastDue status will be accompanied by a delinquency bucket.
+
+Defaulted : the term has come to be used to describe any debt that the card issuer no longer expects to be paid in full.
+
+Chargedoff :When a credit card company has decided that the outstanding debt they’re owed is unlikely to be paid at all, they will typically “charge-off” the debt.
+
+2-**Term** : The length of the loan expressed in months.
+
+3-**ProsperRating (numeric)**  : The Prosper Rating assigned at the time the listing was created: 
+0 - N/A, 1 - HR, 2 - E, 3 - D, 4 - C, 5 - B, 6 - A, 7 - AA. Applicable
+for loans originated after July 2009 --uni--
+
+Prosper has provided a proprietary *"Prosper Rating"* for prospective borrowers for lenders to determine the risks  based on the company's estimation of that borrower's *"estimated loss rate."* According to the company, that figure is "determined by two scores:
+(1) the credit score, obtained from an official credit reporting agency, and the Prosper Score, figured in-house based on the Prosper population."
+
+Prosper Ratings, from lowest-risk to highest-risk, are labeled AA, A, B, C, D, E, and HR
+
+
+Prosper
+rating  	Estimated Average
+Annual    Loss Rate
+AA      	0.00–1.99%
+A	        2.00–3.99%
+B	        4.00–5.99%
+C       	6.00–8.99%
+Prosper
+rating	  Estimated Average
+Annual     Loss Rate
+D	         9.00–11.99%
+E	         12.00–14.99%
+HR        	15.00%+
+
+4-**ProsperScore** : A custom risk score built using historical Prosper data. The score ranges from 1-10, with 10 being the best, or lowest risk score.
+
+Applicable for loans originated after July 2009.
+
+The Prosper score estimates the probability of a loan going “bad,” where “bad” is the probability of going 60+ days past due within the first twelve months from the date of loan origination
+
+This is a score that they have developed internally based on the payment history of actual borrowers on their platform
+
+5-**BorrowerAPR** :The Borrower's Annual Percentage Rate (APR) for the loan. 
+
+APR stands for Annual Percentage Rate. The annual percentage rate on a loan is the amount the lender would charge if you borrowed the money for a year, as a percentage of the original loan. For instance at 40% APR, to borrow for a year you'd be charged 40% of the original loan
+
+*note:On any borrowing, the two key things that affect the interest cost are the annual percentage rate of interest (APR) and how long you borrow for so  If you pay back your loan in less than a year, you'll pay less than the annual rate in interest.*
+
+6-**EstimatedLoss** : Estimated loss is the estimated principal loss on charge-offs. Applicable for loans originated after July 2009.
+
+The loss estimates are based on the historical performance of Prosper loans to borrowers with similar characteristics. They are not a guarantee and actual performance may differ from expected performance.
+
+They use both the Prosper score and the borrowers credit information to determine the interest rate and the estimated loss rate.
+
+Loss rates for a particular group of loans will be a function of the group’s delinquency and loss behavior over time, pre-payment behavior over time, and responsiveness to collections activity. For Prosper loans, the largest driver of the loss rate is the rate at which a group of loans becomes delinquent and charges off. A loan becomes “charged off” and is considered a loss when it becomes 121+ days past due.
+
+
+7-**EstimatedEffectiveYield**  :Effective yield is equal to the borrower interest rate (i) minus the servicing fee rate, (ii) minus estimated uncollected interest on
+charge-offs, (iii) plus estimated collected late fees. Applicable for loans originated after July 2009.
+
+8-**ListingCategory**: The category of the listing that the borrower selected when posting their listing: 0 - Not Available, 1 - Debt Consolidation, 2 - Home
+Improvement, 3 - Business, 4 - Personal Loan, 5 - Student Use, 6 - Auto, 7- Other, 8 - Baby&Adoption, 9 - Boat, 10 - Cosmetic
+Procedure, 11 - Engagement Ring, 12 - Green Loans, 13 - Household Expenses, 14 - Large Purchases, 15 - Medical/Dental, 16 -
+Motorcycle, 17 - RV, 18 - Taxes, 19 - Vacation, 20 - Wedding Loans 
+
+9-**EmploymentStatus**: The employment status of the borrower at the time they posted the listing.
+
+10-**EmploymentStatusDuration**: The length in months of the employment status at the time the listing was created. 
+
+11-**CreditScoreRangeLower** :The lower value representing the range of the borrower's credit score as provided by a consumer credit rating agency.
+
+note:A credit score is a numerical summary of a consumer's creditworthiness that's based on the information contained within their credit report. It reflects the likelihood that they will be able to pay back a credit obligation. it is provided by consumer credit rating agency
+
+12-**CurrentDelinquencies** :Number of accounts delinquent at the time the credit profile was pulled.
+
+13-**AmountDelinquent**: Dollars delinquent at the time the credit profile was pulled.
+
+14-**IncomeRange**: The income range of the borrower at the time the listing was created. 
+
+15-**IncomeVerifiable** : The borrower indicated they have the required documentation to support their income.
+
+16-**StatedMonthlyIncome**: The monthly income the borrower stated at the time the listing was created.
+17-**OnTimeProsperPayments** Number of on time payments the borrower had made on Prosper loans at the time they created this listing. This value will be null if
+the borrower has no prior loans.
+
+18-**ProsperPaymentsLessThanOneMonthLate** Number of payments the borrower made on Prosper loans that were less than one month late at the time they created this listing.
+This value will be null if the borrower had no prior loans.
+
+19-**ProsperPaymentsOneMonthPlusLate** Number of payments the borrower made on Prosper loans that were greater than one month late at the time they created this
+
+20-**DebtToIncomeRatio** The debt to income ratio of the borrower at the time the credit profile was pulled. This value is Null if the debt to income ratio is not
+available. This value is capped at 10.01 (any debt to income ratio larger than 1000% will be returned as 1001%).
+
+
+21-**Occupation**: The Occupation selected by the Borrower at the time they created the listing. 
+
+22-**IsBorrowerHomeowner** A Borrower will be classified as a homowner if they have a mortgage on their credit profile or provide documentation confirming they are a homeowner.--uni--
+
+23-**AvailableBankcardCredit** The total available credit via bank card at the time the credit profile was pulled.
+
+
+
+
+# Univariate Plots Section
+
+
+```{r echo=FALSE ,message=FALSE, warning=FALSE}
+
+#i will use 35 variables in y analysis out of the 81 
+indexLst<-c(2 , 5 , 6  ,7,  8 ,10 ,11, 12 ,14, 16 ,17, 18 ,19, 20, 21, 22, 26, 27 ,36, 37 ,38, 43, 47, 48 ,49 ,50, 51, 64,66 ,67 ,68 ,78 ,81)
+debt<-debt_org[,indexLst]
+
+dim(debt)
+str(debt)
+summary(debt)
+
+#for the 113937 listings , how many Borrower's did this number correspond to ?
+
+```
+i can see that for (EstimatedEffectiveYield ,EstimatedLoss ,ProsperRating..numeric. , ProsperScore ) they have an equal number of missing values(29084) as they are dependent on each other , i will investigate more the listings of these values and whether i shall remove it 
+
+Member key :out of the 113937 listings there are 90831 unique borrower, investigating how listings are distributed among borowers 
+
+prosper score : it's max value is 10 , where it is indicated in the summary a max of 11, ishall observe the listing corresponding to scores more than 10
+
+ProsperPaymentsOneMonthPlusLate ,ProsperPaymentsLessThanOneMonthLate: it is median value is zero and also the first and third quatile values are zeros , also 91852 missing values are evident in these columns too
+
+# Univariate Analysis
+
+## investigating individual variables distributions of variables
+
+### LoanStatus
+```{r echo=FALSE ,message=FALSE, warning=FALSE}
+
+
+ggplot(aes(x=LoanStatus),data=debt)+
+  geom_bar()+ 
+  ylab('Number of Loans')+
+  coord_flip()
+
+```
+
+most of the status of loan in our dataset ranges between 4 categories : completed, chargedoff,defaulted,current
+and a smaller counts in other categories , i can re-categorize the levels into completed ,charged off ,defaulted ,other and shall see how each of the variables effect whether a loan is charged off or completed
+
+### What is the percentage of chargedOFF,completed and defaulted loans in the Prosper dataset ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+debt$LoanStatus<-ifelse(debt$LoanStatus %in% c('Chargedoff','Completed','Defaulted') ,debt$LoanStatus , 'Others' )
+
+debt$LoanStatus<-ifelse(debt$LoanStatus %in% c(3,'Others') ,debt$LoanStatus , 'Chargedoff/Defaulted' )
+
+debt$LoanStatus<-factor(debt$LoanStatus,levels=c(3,'Chargedoff/Defaulted','Others'),labels=c('Completed','Chargedoff/Defaulted','Others'))
+
+
+ggplot(aes(x=LoanStatus),data=debt)+
+  geom_bar(aes(fill=LoanStatus))
+
+```
+
+
+### EstimatedEffectiveYield variable :What is the mean expected yield when investing in Prosper Loans?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+#investigating the common propertise of missing values
+
+Eff_yield_NA<-subset(debt,is.na(EstimatedEffectiveYield))
+
+
+```
+
+after some investigation , it shows that the 90831 missing values of estimated effective yield(as well as prosperscore,..) is due to the fact that Prosper company has changed it's policy of grading loan according to (creditgrade) to be graded according to prosperscore (which the estimated loss is based on) from the second half of 2009 
+
+ i shall include loans that are issued after 2009 in my univariate analysis:
+ 
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+summary(debt$EstimatedEffectiveYield)
+#plotting EstimatedEffectiveYield
+
+ggplot(aes(x=EstimatedEffectiveYield),data=subset(debt,!is.na(EstimatedEffectiveYield)))+
+ 
+  scale_x_continuous(limits=c(0,0.32),breaks=seq(0,0.32,0.05))+
+  geom_histogram(aes(y = ..density..), 
+                   colour="black", fill="white") +
+  geom_density(alpha = 0.5, fill = "orange") +
+  geom_vline(data=subset(debt,!is.na(EstimatedEffectiveYield)&EstimatedEffectiveYield !=0 ), aes(xintercept=mean(EstimatedEffectiveYield)),
+             linetype="dashed")
+  
+
+```
+
+In the EstimatedEffectiveYield plot, I have found outliers that lies below 0 value,again returning to the how the estimated yield is calculated , it is the is equal to the borrower interest rate (i) minus the servicing fee rate, (ii) minus estimated uncollected interest on charge-offs, (iii) plus estimated collected late fees.
+this can mean that the fees and the uncollected interests for some lenders exceeded the interest rate.
+
+
+i excluded this group from the plot to decrease outliers so i added limits to the plot to include the +ve values only as they counted 190 out of 84853 observations,
+the expected estimated effective yield is approximately 0.1687 , where it peaks again at 0.28 , 
+what attributes to having high estimated effective yield ? i will investigate that in the bi, and multi variant analysis
+
+### ProsperRating (numeric) : What is the distribution of ratings among the listed loans ? are more rated of higher risk ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+ggplot(data=subset(debt,!is.na(EstimatedEffectiveYield)),aes(x=ProsperRating..numeric.))+
+  geom_bar(color='black',fill='orange')+
+  scale_x_continuous(breaks=seq(1,7,1),labels=c('HR','E','D','C','B','A','AA'))  +
+  ylab('Number of Loans')+
+  coord_flip()
+
+```
+
+
+the variable has the same case of estimated effective yield where it's values are only evident after july 2009 ,
+Prosper Ratings, from lowest-risk to highest-risk, are labeled AA, A, B, C, D, E, and HR
+the rating is given to a loan according to it's estimated loss rate relative to the borrower's profile
+ numeric rating : 0 - N/A, 1 - HR, 2 - E, 3 - D, 4 - C, 5 - B, 6 - A, 7 - AA
+ 
+most of the loans in the dataset correspond to C which is medium risk , where the lowest count is for the least risk loan , Is the prosper grade  effective ? does really lower risk have a lower percentage of chargedoff loans ?
+How  prospergrade relate to the interest rate of the loan and the effective yield of the lender ?
+
+
+### EstimatedLoss :Now what is the mean expected loss if someone invest in prosper loans ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+summary(debt$EstimatedLoss)
+
+summary(subset(debt,EstimatedLoss<0.12)$EstimatedLoss)
+
+ggplot(aes(x=EstimatedLoss),data=subset(debt,!is.na(EstimatedLoss)))+
+ 
+  scale_x_continuous(limits=c(0,0.37),breaks=seq(0,0.32,0.03))+
+  geom_histogram(aes(y = ..density..), 
+                   colour="black", fill="white") +
+  geom_density(alpha = 0.6, fill = "orange") +
+  geom_vline(data=subset(debt,!is.na(EstimatedLoss)&EstimatedLoss !=0 ), aes(xintercept=mean(EstimatedLoss)),
+             linetype="dashed")
+
+
+```
+
+
+the variable has the same case of estimated effective yield where it's values are only evident after july 2009 ,
+for the plot i used breaks every 0.01 period ,From the summary of that variables there exist outliers that can effect the mean  , the mean expected loss with outliers reaches 8% , while when removing outliers is 6%
+
+the maximum estimated loss is 36% and it is a small portion of the all loans , we can say that common estimated losses are between 3%-9% , where for each estimated loss the Prosper scoring differ according to this table provided in Prosper's official website :
+
+
+rating  	Estimated Average
+Annual    Loss Rate
+AA      	0.00–1.99%
+A	        2.00–3.99%
+B	        4.00–5.99%
+C       	6.00–8.99%
+Prosper
+rating	  Estimated Average
+Annual     Loss Rate
+D	         9.00–11.99%
+E	         12.00–14.99%
+HR        	15.00%+
+
+and that follows the fact that most loans are rated to be B,C,D 
+
+
+### LoanOriginalAmount : What are the typical amounts of money lent through Prosper ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+
+ggplot(aes(x=LoanOriginalAmount),data=debt)+
+  geom_histogram(aes(y = ..density..), 
+                   colour="black", fill="white") +
+  geom_density(alpha = 0.6, fill = "orange") +
+  geom_vline(data=debt, aes(xintercept=mean(LoanOriginalAmount)),
+             linetype="dashed")+
+  scale_x_log10(breaks =c(1000,3000,4000,7000,10000,45000,15000,17000,30000,35000))
+```
+
+
+the loan amounts are highly variant , some by increments of 5 dollars , i converted the variable to log scale for better visualization  , the distribution shows a bimodel distribution after the log transformation where it peaks at 4000 and around 9000 , the maximum value reaches 35000 , which corresponds to the fact that the max amount of one loan in Prosper is 40000
+
+### IncomeRange: What is the income range of most Borrowers ?
+```{r echo=FALSE,message=FALSE, warning=FALSE , fig.width=12, fig.height=12 }
+
+
+
+income_zero<-subset(debt,IncomeRange==  '$0' )
+income_not_employed<-subset(debt,IncomeRange== 'Not employed' )
+
+
+df <- debt %>%
+  group_by(IncomeRange) %>%
+  summarise(counts = n())
+
+ggplot(aes(x=IncomeRange,y=counts),data=df)+
+ geom_bar(aes(fill =IncomeRange), stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) 
+
+
+```
+
+most of our dataset had borrowers from 25000-75000 income , there is a minimum criteria to borrow at prosper that Stated that income should be greater than $0 
+but there are 621 listing with income =0 
+i shall investigate that further
+
+understanding the data for income zero category ,there are 621 listings in this category, their employment status shows that most of them are employed whether self or full time employed , with only 11 as unemployed 
+
+i guess it has something to do with their current income , as these 621 have different prosper gradings and not all of them marked as high risk as expected
+
+data for the unemployed :
+
+for people who registered as unemployed, there are 806 listings in this category , there are 771 that listed their occupation as other , their mean rating is 2 with max 7 ,but taking into account that most of these people stated a duration where they worked before , later we can investigate how this group APR and rating differ from the median APR , also the percentage that was charged off
+
+
+### BorrowerAPR : What is the mean Prosper's interest rate among the loans given ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+high_interest_rate<-subset(debt,BorrowerAPR > 0.35)
+
+
+
+ggplot(aes(x=BorrowerAPR),data=subset(debt,!is.na(BorrowerAPR)))+
+  geom_histogram(aes(y = ..density..), 
+                   colour="black", fill="white") +
+  geom_density(alpha = 0.6, fill = "orange") +
+  geom_vline(data=subset(debt,!is.na(BorrowerAPR)), aes(xintercept=mean(BorrowerAPR)),
+             linetype="dashed", size = 0.9)+
+  scale_x_continuous(breaks=seq(0,0.45,0.05))
+  
+```
+
+
+the NA values attribute to the fact that these loans were given before 2009 , where the rate of interest was set by a bid between lenders and borrowers
+
+the distribution shows that the  average interest rate mainly ranges from 12% to 25% where it can reaches 40% at some instances 
+
+i have gathered a 10334 data sets with interest rate more than 35% to compare with median APR interest rate,usually loans with higher risk have a higher interest rate 
+
+
+### DebtToIncomeRatio :Out of all Borrowers , Is the amount of loan proportional to their Income ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+summary(debt$DebtToIncomeRatio)
+summary(subset(debt,DebtToIncomeRatio>3)$DebtToIncomeRatio)
+
+
+ggplot(aes(x=DebtToIncomeRatio, y=..count../sum(..count..)),data=debt)+
+  geom_histogram(aes(y = ..density..), 
+                   colour="black", fill="white") +
+  geom_vline(data=subset(debt,!is.na(DebtToIncomeRatio)), aes(xintercept=mean(DebtToIncomeRatio)),
+             linetype="dashed", size = 0.9)+
+ scale_x_log10(breaks=c(0,0.01,0.03,0.1,0.3,1,3,10))
+
+
+```
+
+The variable here is the debt to income ratio 
+From the summary There is outliers in this variable as the third quartile data ends at 32% while maximum values reaches 1001% 
+i transformed the debttoincome variable to logscale for better represention , also i plotted the y-axis as a proportion of the total count
+
+the average debt to income ratio ranges from 10% to 100% , with a mean of approxmatly 30% where values with higher ratio represent 5% of our dataset
+which answers our question , most of the loans are somehow proportional to the amount of debt 
+
+
+
+### Term : What is the term of most loans ?1 year,3 years or 5 years?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+
+df <- debt %>%
+  group_by(Term) %>%
+  summarise(counts = n())
+
+ggplot(aes(x=Term,y=counts),data=df)+
+ geom_bar(stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+   scale_x_continuous(breaks=c(12,36,60))
+  
+```
+
+
+
+most of the loans in our dataset have a 3 year span for it's fullfilment 
+
+### IncomeVerifiable :Are te incomes stated in Borrower's profiles true ?
+
+```{r echo=FALSE}
+
+summary(debt$IncomeVerifiable)/length(debt$IncomeVerifiable)
+```
+
+revealing whether the income listed is supported by documents , 92% of the stated incomes are verivfied by documents
+
+### ListingCategory:Why People usually take Loans ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE, fig.width=12,fig.height=12}
+
+
+
+
+debt$ListingCategory<-ifelse(debt$ListingCategory %in% c(9,10,12,17,0) ,7 , debt$ListingCategory )
+
+
+debt$ListingCategory<-factor(debt$ListingCategory,levels=c(1,2,3,4,5,6,7,8,11,13,12,15,16,18,19,20),labels=
+                          c('Debt Consolidation', 'HomeImprovement','Business', 'Personal Loan','Student Use', 'Auto', 'Other', 'Baby&Adoption', 'Engagement Ring','Household Expenses','Large Purchases', 'Medical/Dental', 
+'Motorcycle','Taxes','Vacation', 'Wedding Loans'))
+
+
+df <- subset(debt,!is.na(ListingCategory)) %>%
+  group_by(ListingCategory) %>%
+  summarise(counts = n())
+table(debt$ListingCategory)
+
+ggplot(aes(x=ListingCategory,y=counts),data=df)+
+ geom_bar(aes(fill =ListingCategory), stat = "identity") +
+  geom_text(aes(label = counts), vjust = -0.3) +
+  theme(axis.text.x = element_text(angle =90, vjust =0.5,hjust=1),legend.text=element_text(size=7),
+        legend.position="bottom", legend.box = "horizontal")
+
+ 
+   
+```
+
+
+most of the loans are drawn due to debt consolidation , home improvement and busniess follows , the least are loans for boats and RVs
+
+
+### Occupation of the borrower:Is there is a common occupation among Loan Borrwers in Prosper ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE , fig.width=10,fig.height=8}
+
+
+
+table(debt$Occupation =="")
+df <- subset(debt,!is.na(Occupation)&Occupation!= "") %>%
+  group_by(Occupation) %>%
+  summarise(counts = n())
+
+ggplot(aes(x=Occupation,y=counts),data=df)+
+ geom_bar( stat = "identity",aes(fill=Occupation)) +
+  theme(axis.text.x = element_text(angle =90, vjust =0.5,hjust=1,size=7.5),legend.position="none")
+ 
+``` 
+
+
+most of the borrowers stated other as their occupation , the second most populated factor is professional , maybe because it is a broader category , accountants ,computer programmers and analysts are the ones with more loans in our dataset
+
+### EmploymentStatusDuration : Are the Borrowers People with alot of years of experience ?
+
+
+```{r echo=FALSE,message=FALSE, warning=FALSE ,fig.width=10,fig.height=8}
+
+debt$EmploymentStatusDuration<-round(debt$EmploymentStatusDuration/12)
+
+
+df <- subset(debt,!is.na(EmploymentStatusDuration)) %>%
+  group_by(EmploymentStatusDuration) %>%
+  summarise(counts = n())
+
+
+ggplot(aes(x=EmploymentStatusDuration,y=counts),data=df)+
+ geom_bar(aes(fill =EmploymentStatusDuration), stat = "identity") +
+  theme(axis.text.x = element_text(angle =90, vjust =0.5,hjust=1))+
+  scale_x_continuous(breaks=seq(0,60,1))+
+  geom_vline(data=subset(debt,!is.na(EmploymentStatusDuration)), aes(xintercept=mean(EmploymentStatusDuration)),linetype="dashed", size = 0.9)
+  
+
+  
+```
+
+the average employment years tends to be around 8 years , most of the borrowers are at the start of their careers with 1 or 2 years of experience , their some rare cases with 60 or 50 years of experience 
+
+from my readings referenced in the attached txt.file usually for home loans at least two years of employment duration for most banks is a must
+
+ 
+
+### What is the structure of your dataset?
+This data set contains 113,937 loans with 81 variables on each loan, including loan amount, borrower rate (or interest rate), current loan status, borrower income, borrower employment status, borrower credit history, and the latest payment information.
+
+i have concentrated on 38 variables and created a subset of the original dataset conntaining only these variables
+
+there number of nulls in each column variable , some of them due to change of the policy of Prosper company by 2009 and using different metrics for grading 
+
+
+### What is/are the main feature(s) of interest in your dataset?
+i have main features that i think guide and interpret the lending process in Prosper :
+
+#### Prosper grading : 
+the grade that is given to the loan is determined by loss estimated and determines the total
+interest rate , risker loans have higher rates , how these gradings change with the finicial state of the borrower , and do they help? are charged off loans are sufficiently lower in less risker loans?
+
+#### status of the loan :
+chargedoff or defaulted or completed or deliquent from 1 day to above 120 days
+comparing the proportion of charged off and defaulted loans to completed loans of each group or category of the borrower's features 
+
+
+#### BorrowerAPR :
+the annual loan rate , how high are the rates , and what are the prominent characteristics of a high interest rate and low interest one ?i want through the data get the best condition for the borrower for a loan with lowest rate
+
+#### EstimatedEffectiveYield :
+
+Effective yield is equal to the borrower interest rate (i) minus the servicing fee rate, (ii) minus estimated uncollected interest on
+charge-offs, (iii) plus estimated collected late fees. this variable quantifiy the lender gain across different variants of the loan
+
+#### term :
+the term of the loan , are longer term loans with less monthly payment rates give the lender a better yield or those with shorter terms and higher monthly payment
+
+what are the finicial state of people borrowing money ? how different people with different incomes takes different risks? 
+
+how much of the investors takes risks and how much of them achieve profit out of it ? 
+### What other features in the dataset do you think will help support yourinvestigation into your feature(s) of interest?
+
+i needed variables to quantifiy the finicial state of a borrower , there were alot of variables but i choose :
+
+available bank card credit
+
+mean LoanOriginalAmount
+
+mean monthlyincome
+
+loan status
+
+DebtToIncomeRatio
+
+IsBorrowerHomeowner
+
+EmploymentStatus
+
+EmploymentStatusDuration
+
+prosper grading
+
+CreditScoreRangeUpper
+
+CurrentDelinquencies
+
+
+
+### Did you create any new variables from existing variables in the dataset?
+
+for several variables i changed the levels of factors of varaibles , usually grouping similar categories into one category 
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+I transformed several variables distribution using the log transformation, there were missing data and unrealistic
+values that i found like finding negative values in seemingly positive ones , for every alteration i did , i wrote te details under it's plot with summaries provided
+
+
+
+
+
+
+
+# Bivariate Plots Section
+
+
+
+First i will view the Bivariate -pairs model
+i hashed the line of exceution of ggpairs as it made knitting the html kept freezing
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+vars_2<-c( "LoanOriginalAmount" ,"DebtToIncomeRatio","EmploymentStatus","IsBorrowerHomeowner","EmploymentStatusDuration","ProsperPaymentsOneMonthPlusLate" , "StatedMonthlyIncome","ProsperRating..numeric.","CurrentDelinquencies","EstimatedEffectiveYield","BorrowerAPR","Term","LoanStatus")
+
+
+bivariate_pairs<-debt_org[,vars_2]
+#ggpairs(bivariate_pairs)
+
+```
+
+### Does the income of the Borrower effect how Prosper company grade him ?
+
+here we are using the income range
+
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+ggplot(data=subset(debt,!is.na(ProsperRating..numeric.)), aes(ProsperRating..numeric., ..count..)) + geom_bar(aes(fill = IncomeRange), position = "dodge")+
+ scale_x_continuous(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_fill_brewer(palette = 'Set3')
+
+
+```
+
+we can see that almost most of the not employed category lie in the high risk graded loans while approximately no loans are given to those with income zero, but the rest of the income ranges is not heavily relevant to the prosper grading as i imagnied in gradings, the effect is more revlevant if we compare the higher risk rating HR , with the lowest risk loan AA we can see that higher incomes tend to have more AA gradings 
+
+
+
+using the stated monthly income 
+
+```{r echo=FALSE , message=FALSE, warning=FALSE }
+
+debt$ProsperRating..numeric.<-factor(debt$ProsperRating..numeric.)
+
+ggplot(aes(x=ProsperRating..numeric., y= StatedMonthlyIncome),data=subset(debt,!is.na(ProsperRating..numeric.)))+
+ geom_boxplot(outlier.colour="blue", outlier.shape=8,outlier.size=1 ,aes(fill=ProsperRating..numeric.))+
+ scale_x_discrete(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_y_continuous(limits=c(0,25000))+
+   scale_fill_discrete(name = "ProsperRating")
+
+
+with(debt,cor.test(as.numeric(ProsperRating..numeric.),StatedMonthlyIncome))
+
+```
+
+
+using the boxplot we can see that the median of AA grade is higher being compared to the HR grade , while the difference is seemingly subtle when comparing the grades in between
+
+the correlation coefficient shows very weak correlation between prospergrading and income
+
+
+### Is Prosper grading an efficient guide for safer loans ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+ggplot(data=subset(debt,!is.na(LoanStatus)&!is.na(ProsperRating..numeric.)), aes(x=ProsperRating..numeric., fill=LoanStatus) ) +
+  geom_bar(aes(y = (..count..)/sum(..count..)),position=position_dodge() )+
+  scale_x_discrete(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_fill_brewer( palette = "Dark2")+
+  ylab('Percentage of Borrowers')+
+  xlab('ProsperRating')
+  
+
+
+
+```
+
+we can see that for safe graded loans that percentage of charged off loans is the lowest and increase as we increase the grade , to make sure of the differences i shall find the exact percentage 
+
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+after_09_debt<-subset(debt,!is.na(ProsperRating..numeric.))
+after_09_debt$ProsperRating..numeric.<-factor(after_09_debt$ProsperRating..numeric.)
+AA_rating<-subset(after_09_debt,ProsperRating..numeric.== 7)
+HR_rating<-subset(after_09_debt,ProsperRating..numeric.== 1)
+D_rating<-subset(after_09_debt,ProsperRating..numeric.== 3)
+
+table(AA_rating$LoanStatus =="Chargedoff/Defaulted" )/length(AA_rating$LoanStatus)
+table(HR_rating$LoanStatus =="Chargedoff/Defaulted" )/length(HR_rating$LoanStatus)
+table(D_rating$LoanStatus == "Chargedoff/Defaulted" )/length(D_rating$LoanStatus)
+
+```
+
+we can see that 1.5% of the total loans of AA grade are defaulted or chargedoff , 20% of HR grade loans are defaulted or charged off, where 11% of total D grade loans are defaulted or chargedoff
+
+
+
+### If you don't own a home , will the inerest rate increase ? if yes by how much ? 
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+ggplot(aes(x=IsBorrowerHomeowner,y=BorrowerAPR ,fill=IsBorrowerHomeowner),data=subset(debt,!is.na(BorrowerAPR)))+
+geom_boxplot( )+
+  scale_fill_brewer(palette="Dark2")
+
+summary(subset(debt,IsBorrowerHomeowner=='False')$BorrowerAPR)
+summary(subset(debt,IsBorrowerHomeowner=='True')$BorrowerAPR)
+
+
+
+```
+
+so yes , not owning a home will increase the interest rate of your loan ,the median interest rate of home owners is lower than the interest rate  for people who don't own homes by 2% 
+
+### will the prosper grading differ for home owners ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+ggplot(data=subset(debt,!is.na(IsBorrowerHomeowner)&!is.na(ProsperRating..numeric.)), aes(x=ProsperRating..numeric., fill=IsBorrowerHomeowner) ) +
+  geom_bar(aes(y = (..count..)/sum(..count..)))+
+  scale_x_discrete(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_fill_brewer( palette = "Paired")+
+  ylab('Percentage of Borrowers')+
+  xlab('ProsperRating')
+
+```
+
+
+Only the AA grade seems to have a higher percentage of home owners while for other grades the pecentage of home owners to others is seemingly equal
+
+### How the interest rate differ according to your employment Status ?
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+ggplot(aes(x=EmploymentStatus,y=BorrowerAPR ,fill=EmploymentStatus),data=subset(debt,!is.na(BorrowerAPR) & EmploymentStatus %in% c("Full-time", "Employed","Self-employed","Retired", "Part-time","Not employed") ))+
+geom_boxplot( )+
+  scale_fill_brewer(palette="Dark2")
+
+summary(subset(debt,EmploymentStatus == "Not employed")$BorrowerAPR)
+summary(subset(debt,EmploymentStatus == "Employed")$BorrowerAPR)
+summary(subset(debt,EmploymentStatus == "Self-employed")$BorrowerAPR)
+
+
+```
+
+
+I excluded the 'other' and vacant categories from employment status 
+for the unemployed the median of theinterest rate increase up to 29% ,interestingly enough among tthe highest Borrower's rate categories was people who were listed as employed scoring higher rates than the retired and slightly lower than the the self employed with median interest rate of 21.4%
+
+we note from the matrix plot that employment duration doesn't have a great impact in the interest rate with 0.008 pearson correlation score, current deliquenices of a borrower interestingly doesn't have a great impact as i imagined with a 0.321 correlation score
+
+
+### what is a better strategy for investing in loans ?Lending larger amounts of money or investing in several smaller loans?
+
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+ggplot(aes(x=LoanOriginalAmount,y=EstimatedEffectiveYield ),data=subset(debt,!is.na(EstimatedEffectiveYield) ))+
+geom_jitter(aes(color =LoanOriginalAmount),alpha=1/10) +
+  geom_smooth( method=lm)
+   
+  
+
+summary(subset(debt,EstimatedEffectiveYield >0.2)$LoanOriginalAmount)
+
+```
+
+it appears that Several smaller Loans are more beneficial !
+it shows that most of the yield that exceeds the 30% are below 15000 , where for the loans that have a median of 4000 and third quartile limit of 7500 dollars  
+
+
+### Is investing in longer term loans results in more yield ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+debt$Term<-factor(debt$Term)
+
+ggplot(aes(x=Term,y=EstimatedEffectiveYield,fill=Term),data=subset(debt,!is.na(EstimatedEffectiveYield)))+
+  geom_bar(stat = "identity")+
+  scale_fill_brewer(palette="Dark2")
+
+```
+
+
+we can see that longer terms loans gives more effective yield but the 3 years loan term seem to have the maximum yoeld , theses results can have something to do with the distribution of different loan terms in the dataset as the 3 years loan prevails
+
+
+## Is the percentage of chargedoff or defaulted loans the same for all loans ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+ggplot(data=subset(debt,!is.na(LoanStatus)&!is.na(Term)), aes(x=Term, fill=LoanStatus) ) +
+  geom_bar(position=position_dodge())+
+  scale_fill_brewer( palette = "Pastel1")+
+  ylab('Number of Listings')
+  
+
+```
+
+for more accurate findings , explore the summaries
+
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+term_12<-subset(debt,Term == 12)
+term_36<-subset(debt,Term == 36)
+term_60<-subset(debt,Term == 60)
+table(term_12$LoanStatus == "Chargedoff/Defaulted" )/length(term_12$LoanStatus)
+table(term_36$LoanStatus =="Chargedoff/Defaulted" )/length(term_36$LoanStatus)
+table(term_60$LoanStatus =="Chargedoff/Defaulted" )/length(term_60$LoanStatus)
+
+```
+
+
+5% of the 1 year loans has defaulted or charged off , 17% of the 3 years loan period has defaulted or charged off ,
+5.1% of 5 years loans has defaulted or charged off
+
+# Bivariate Analysis
+
+
+### What was the strongest relationship you found?
+the prosper grading relating to the percentage of charged off or defaulted loans
+
+
+
+# Multivariate Plots Section
+
+### are longer term loans with less monthly payment rates give the lender a better yield or those with shorter terms and higher monthly payment
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+ggplot(aes(x=Term,y=EstimatedEffectiveYield,fill=LoanStatus),data=subset(debt,!is.na(EstimatedEffectiveYield)))+
+  geom_bar(stat = "identity")+
+  scale_fill_brewer(palette="Dark2")
+
+```
+
+
+charged off loans are prevailing more in longer terms loan , although a longer term loan can have higher yield , 
+but chance of charging off is higher
+
+
+### does lending more of higher risk gives more yield , or is it more wise to invest in smaller loans with different prosper rating?
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+debt$ProsperRating..numeric.<-factor(debt$ProsperRating..numeric.)
+ggplot(aes(x=ProsperRating..numeric.,y=LoanStatus),data=subset(debt,!is.na(ProsperRating..numeric.)))+
+ geom_jitter(alpha=1/2, aes(color=EstimatedEffectiveYield))+
+  scale_x_discrete(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_color_gradient(low="blue", high="red")+
+  xlab('ProsperRating')
+
+
+```
+
+we see that indeed choosing a higher risk loan can give more yield but with a higher chance of the loan being charged off or defaulted
+
+### for those who had negative yield is there is common characteristic ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+ggplot(aes(x=LoanStatus,y=EstimatedEffectiveYield,fill=EmploymentStatus),data=subset(debt,!is.na(EstimatedEffectiveYield)&EstimatedEffectiveYield < 0  & EmploymentStatus %in% c("Full-time", "Employed","Self-employed","Retired", "Part-time","Not employed")))+
+  geom_bar(stat = "identity")+
+  scale_fill_brewer(palette="Dark2")
+
+debt$Term<-factor(debt$Term)
+ggplot(aes(x=LoanStatus,y=EstimatedEffectiveYield,fill=BorrowerAPR),data=subset(debt,!is.na(EstimatedEffectiveYield)&EstimatedEffectiveYield < 0  ))+
+  geom_bar(stat = "identity")+
+  facet_wrap(~Term,ncol=3)
+
+
+ggplot(aes(x=LoanStatus,y=EstimatedEffectiveYield,fill=LoanOriginalAmount),data=subset(debt,!is.na(EstimatedEffectiveYield)&EstimatedEffectiveYield < 0  ))+
+  geom_bar(stat = "identity")
+#  scale_fill_brewer(palette="Reds",type='div')
+
+
+
+```
+
+we note that the estimated yield  is equal to the borrower interest rate (i) minus the servicing fee rate, (ii) minus estimated uncollected interest on charge-offs, (iii) plus estimated collected late fees.
+
+but we can see that the the most negative estimated yield are completed and are not charged off and that is a surprising effect , also observing the interest rate , they are not expectionally low to yield this value 
+
+all the loans of this group are of 3 years term , we can see that to some extent the loan being higher contribute in the outcome of it labeled as negative yield loan
+
+
+### For those who registered their job on the listing as 'not employed' did they get higher interest and did they defaulted or completed their loans ?
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+
+
+ggplot(aes(x=LoanStatus,y=BorrowerAPR,fill=as.factor(ProsperRating..numeric.)),data=subset(income_not_employed,!is.na(EstimatedEffectiveYield) ))+
+  geom_bar(stat = "identity")+
+   scale_fill_brewer(palette="Reds")+
+   scale_fill_discrete(name = "ProsperRating")
+
+
+```
+
+again strangely the loans that actually was completed and not defaulted have a higher interest rate , but for the investors the circumstances where more fair as most of the chargedoff/defaulted customers didn't recieve a high safety prosper grading , although a small subset recieved AA grading which is the safest grading altough the Borroer is not employed
+
+### Fitting a Logistic regression model to predict whether a loan will be charged off/defaulted or completed
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+
+
+vars_3<-c( "Term" ,"BorrowerAPR", "EstimatedEffectiveYield","ProsperRating..numeric.",  "EmploymentStatus" , "EmploymentStatusDuration", "IsBorrowerHomeowner","CreditScoreRangeUpper" ,"CurrentDelinquencies" , "AmountDelinquent" ,"AvailableBankcardCredit" , "IncomeRange" , "StatedMonthlyIncome"  ,"LoanOriginalAmount" ,"MonthlyLoanPayment","LoanStatus")
+
+
+
+model_data<-debt[,vars_3]
+
+table(model_data$LoanStatus)
+model_data<-subset(model_data,LoanStatus %in% c('Chargedoff/Defaulted','Completed') &!is.na(ProsperRating..numeric.))
+               
+dim(model_data)
+
+model_data$LoanStatus<-factor(model_data$LoanStatus)
+table(model_data$LoanStatus)
+
+
+
+#fitting a model to predict if the loan will be chargedoff or complete using multiple regression and
+#backward elimination where charged or completed is the dependent predict variable
+#categorical variables are 
+
+# IncomeRange
+# EmploymentStatus
+# IsBorrowerHomeowner
+
+#deal with categorical variable
+
+model_data$LoanStatus<- factor(model_data$LoanStatus,
+                         levels = c('Chargedoff/Defaulted', 'Completed'),
+                         labels = c(0,1))
+
+table(model_data$LoanStatus)
+
+model_data$EmploymentStatus<-factor(model_data$EmploymentStatus , levels=c('Employed','Full-time','Not available','Not employed','Other','Part-time','Retired','Self-employed') ,labels=c(1,2,3,4,5,6,7,8))
+table(model_data$EmploymentStatus)
+
+
+table(model_data$IncomeRange)
+model_data$IncomeRange<-factor(model_data$IncomeRange , levels=c('$0','$1-24,999','$100,000+','$25,000-49,999','$50,000-74,999','Part-time','$75,000-99,999','Not employed','Not displayed') ,labels=c(1,2,3,4,5,6,7,8,9))
+table(model_data$IncomeRange)
+
+
+table(model_data$IsBorrowerHomeowner)
+model_data$IsBorrowerHomeowner<-factor(model_data$IsBorrowerHomeowner,
+                         levels = c('False', 'True'),
+                         labels = c(0,1))
+table(model_data$IsBorrowerHomeowner)
+
+model_data<-droplevels(model_data)
+str(model_data)
+ vector<- sapply(model_data, function(x) sum(is.na(x)))
+
+
+#first split the data into training and testing sets
+library(caTools)
+set.seed(123)
+split = sample.split(model_data$LoanStatus , SplitRatio = 0.9)
+training_set = subset(model_data, split == TRUE)
+test_set = subset(model_data, split == FALSE)
+
+classifier = glm(formula = LoanStatus ~ .,
+                 family = binomial,
+                 data = training_set)
+summary(classifier)
+
+#i will refit the model after removing variabless with p-value > 0.05
+#remove(ProsperRating..numeric.,EmploymentStatus2 ,EmploymentStatus4,EmploymentStatus6 ,EmploymentStatus8,EmploymentStatusDuration,IsBorrowerHomeowner1,AvailableBankcardCredit,IncomeRange8,DebtToIncomeRatio,AvailableBankcardCredit.1,MonthlyLoanPayment)
+#predict on the test set
+prob_pred = predict(classifier, type = 'response', newdata = test_set[,-16])
+y_pred = ifelse(prob_pred > 0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm = table(test_set[, 16], y_pred > 0.5)
+
+#removing some variables with high p-value
+vars_4<-c( "Term" ,"BorrowerAPR", "EstimatedEffectiveYield",  "EmploymentStatus" , "CreditScoreRangeUpper" ,"CurrentDelinquencies" , "AmountDelinquent" ,  "StatedMonthlyIncome"  ,"LoanOriginalAmount" ,"ProsperRating..numeric." ,"AvailableBankcardCredit","LoanStatus" )
+
+model_data_1<-model_data[,vars_4]
+str(model_data_1)
+
+
+set.seed(123)
+split_1 = sample.split(model_data_1$LoanStatus , SplitRatio = 0.9)
+training_set_1 = subset(model_data_1, split_1 == TRUE)
+test_set_1 = subset(model_data_1, split_1 == FALSE)
+
+classifier_1<-glm(formula = LoanStatus ~ .,
+                 family = binomial,
+                 data = training_set_1)
+summary(classifier_1)
+#predict on the test set
+table(test_set_1$ProsperRating..numeric.)
+prob_pred_1 = predict(classifier_1, type = 'response', newdata = test_set_1[,-12])
+y_pred_1 = ifelse(prob_pred_1 > 0.5, 1, 0)
+
+# Making the Confusion Matrix
+cm_1 = table(test_set_1[, 12], y_pred_1 > 0.5)
+cm
+```
+
+
+# Multivariate Analysis
+
+
+### Were there any interesting or surprising interactions between features?
+there was an interesting pattern of some loans having a negative expected yield , although there chargedoff percentage is not high enough and the interest rate is variant among this group and is not exceptionally low
+
+also the group under the category unemployed had some patterns where alot of people under this category had to pay higher interest rate although they completed , and another portion recieved a lower interest rate but chargedoff or defaulted the loan
+
+
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+the model had a moderate performance when tested on a test set i partitioned from the data , first i fitted the model by some of the variables that showed a sign of correlation , upon removing more variables of the highest p-value ,the model performance didn't get much better
+here is the confusion matrix of the  model  :
+
+```{r echo=FALSE,message=FALSE, warning=FALSE}
+cm
+```
+
+
+------
+
+# Final Plots and Summary
+
+
+### Plot One
+```{r echo=FALSE,message=FALSE, warning=FALSE, Plot_One}
+
+
+
+income_not_employed$ProsperRating..numeric.<-factor(income_not_employed$ProsperRating..numeric.)
+ggplot(aes(x=LoanStatus,y=BorrowerAPR,fill=(ProsperRating..numeric.)),data=subset(income_not_employed,!is.na(EstimatedEffectiveYield) ))+
+  geom_bar(stat = "identity")+
+   scale_fill_brewer(palette="Reds")+
+  ggtitle("Rel. between Loan status and the interest rate for each prosper rating") +
+xlab("Loan Status") +
+ylab("Interest rate in percentage")+
+  
+ theme(plot.title = element_text(color="red", size=14, face="bold.italic"),
+axis.title.x = element_text(color="blue", size=14, face="bold"),
+ axis.title.y = element_text(color="#993333", size=14, face="bold"),
+legend.title = element_text(colour="black", size=10, 
+                                      face="bold")
+)+
+   scale_fill_discrete(name = "ProsperRating")
+
+
+```
+
+### Description One
+
+that plot was answering the question : For those who registered their job on the listing as 'not employed' did they get higher interest and did they defaulted or completed their loans ?
+
+the loans that actually was completed and not defaulted have a higher interest rate , but for the investors the circumstances where more fair as most of the chargedoff/defaulted customers didn't recieve a high safety prosper grading , although a small subset recieved AA grading which is the safest grading altough the Borroer is not employed
+
+### Plot Two
+```{r echo=FALSE,message=FALSE, warning=FALSE,Plot_Two}
+
+ggplot(aes(x=ProsperRating..numeric., y= StatedMonthlyIncome),data=subset(debt,!is.na(ProsperRating..numeric.) & !is.na(StatedMonthlyIncome)))+
+ geom_boxplot(outlier.colour="black", outlier.shape=8,
+             outlier.size=1 ,aes(fill=ProsperRating..numeric.))+
+ scale_x_discrete(breaks=seq(1,7,1),labels = c('HR','E','D','C','B','A','AA' ))+
+  scale_y_continuous(limits=c(0,25000))+
+   scale_fill_brewer(palette="YlOrBr")+
+  ggtitle("Rel. between prosper rating and StatedMonthlyIncome ") +
+xlab("ProsperRating") +
+ylab("Stated Monthly Income in US dollars")+
+  
+ theme(plot.title = element_text(color="red", size=14, face="bold.italic"),
+axis.title.x = element_text(color="blue", size=14, face="bold"),
+ axis.title.y = element_text(color="#993333", size=14, face="bold"))+
+   scale_fill_discrete(name = "ProsperRating")
+
+  
+
+```
+
+### Description Two
+
+I wanted to see what makes a borrower take a good grade for his loan specifically how his income effect that , we
+can see that as the income increase the probability of getting a higher rating increase and that indeed is one of the factors affecting the outcome
+
+
+### Plot Three
+```{r echo=FALSE,message=FALSE, warning=FALSE,Plot_Three}
+
+
+ggplot(aes(x=LoanOriginalAmount,y=(EstimatedEffectiveYield)*100 ),data=subset(debt,!is.na(EstimatedEffectiveYield) ))+
+geom_jitter(aes(color =LoanOriginalAmount),alpha=1/20) +
+  geom_smooth( method=lm) +scale_fill_brewer(palette="YlOrBr")+
+  ggtitle("Rel. between Estimated yield and Loan amount") +
+xlab("LoanOriginalAmount in US dollars") +
+ylab("EstimatedEffectiveYield in percentage")+
+  
+ theme(plot.title = element_text(color="red", size=14, face="bold.italic"),
+axis.title.x = element_text(color="blue", size=14, face="bold"),
+ axis.title.y = element_text(color="#993333", size=14, face="bold"))
+
+  
+
+   
+
+```
+
+
+
+### Description Three
+what is a better strategy for investing in loans ?Lending larger amounts of money or investing in several smaller loans?
+it appears that Several smaller Loans are more beneficial !
+it shows that most of the yield that exceeds the 30% are below 15000 , where for the loans that have a median of 4000 and third quartile limit of 7500 dollars  
+
+------
+
+# Reflection
+
+First of all there were many variables that i have never encountered or worked with , specially the different terms describing loans , knowing these variables and how they naturally effect each other was important to ask the right questions yet it required time , the number of variables was high and i couldn't just concentrate my findings on a few of them as that won't be efficient 
+i intended to group the listings by the Borrowers and explore patterns over time but there wasn't enough number of listings for each member as most of the listings had unique Borrowers , knowing how the behaviours and the types of loans a regular Prosper Borrowr do would have been intuitive 
+Also how the loans differ by different state is a good topic to take aboutt and maybe some laws in some of the states or the finicial state can explain some of the loan patterns
